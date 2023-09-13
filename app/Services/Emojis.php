@@ -2,24 +2,59 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Psr\Http\Message\ServerRequestInterface;
+use App\Repositories\EmojiRepository;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 
 class Emojis
 {
-    public function getEmojis(ServerRequestInterface $request) {
-        $data = Validator::make(['productId' => $request->getQueryParams()['productId']],[
-           'productId' => 'required|int'
-        ]);
-        $emojis = $this->emojiList();
-        if ($data->fails()) {
-            return $emojis;
+    private EmojiRepository $emojiRepository;
+
+    public function __construct()
+    {
+        $this->emojiRepository = new EmojiRepository();
+    }
+
+    public function productEmojis(int $productId): array
+    {
+        $emojis = $this->sortedListByPopular();
+        if (!$productId) {
+            return $emojis->toArray();
         }
 
-        $selectedEmoji = Auth::user()->emojis()->where('productId', $request->getQueryParams()['productId'])->first();
+        return $this->handleSelectedEmoji($emojis, $productId)->toArray();
+    }
+
+    public function emojiList(): Collection
+    {
+        return $this->emojiRepository->emojiList();
+    }
+
+    private function sortedListByPopular(): Collection
+    {
+        //TODO Could be use cache with TTL
+//        $emojis = Cache::get('emojis');
+//        if ($emojis) {
+//            return $emojis;
+//        }
+        $emojis = $this->emojiRepository->sortedListByPopular();
+//        Cache::set('emojis', $emojis);
+
+        return $emojis;
+    }
+
+    public function removeEmojisToProduct(int $productId): void
+    {
+        $this->emojiRepository->removeEmojisToProduct($productId);
+    }
+
+    public function getProductEmojisCount(int $productId): int {
+        return $this->emojiRepository->getProductEmojisCount($productId)?->count ?? 0;
+    }
+
+    private function handleSelectedEmoji(Collection $emojis, int $productId): Collection
+    {
+        $selectedEmoji = $this->emojiRepository->userEmojiToProduct($productId);
         if ($selectedEmoji) {
             return $emojis->map(function (\App\Models\Emojis $emoji) use ($selectedEmoji) {
                 $emoji['isSelected'] = (int)$emoji->id == (int)$selectedEmoji->id;
@@ -27,23 +62,6 @@ class Emojis
                 return $emoji;
             });
         }
-
-        return $emojis;
-    }
-
-    public function emojiList() {
-        $emojis = Cache::get('emojis');
-        if ($emojis) {
-            return $emojis;
-        }
-
-        $emojis = \App\Models\Emojis::select('emojis.id', 'emojis.unicode')
-            ->addSelect(DB::raw('false as isSelected'))
-            ->leftJoin('emojis_to_product', 'emojis_to_product.emojiId', '=', 'emojis.id')
-            ->groupBy('emojis.id')
-            ->orderByRaw('COUNT(emojis.id) DESC')
-            ->get();
-        Cache::set('emojis', $emojis);
 
         return $emojis;
     }

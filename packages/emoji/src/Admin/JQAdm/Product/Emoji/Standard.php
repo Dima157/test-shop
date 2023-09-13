@@ -10,6 +10,7 @@
 
 namespace Aimeos\Admin\JQAdm\Product\Emoji;
 
+use App\Services\Emojis;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -36,6 +37,12 @@ class Standard
      * @since 2016.04
      */
 
+    private Emojis $emojiService;
+    public function __construct(\Aimeos\MShop\ContextIface $context)
+    {
+        parent::__construct($context);
+        $this->emojiService = new Emojis();
+    }
 
     /**
      * Copies a resource
@@ -269,15 +276,7 @@ class Standard
      */
     protected function toArray( \Aimeos\MShop\Product\Item\Iface $item, bool $copy = false ) : array
     {
-        $emojiCount = DB::table('emojis_to_product')
-            ->select(DB::raw('COUNT(*) as count'))
-            ->where('productId', $item->getId())
-            ->groupBy('productId')
-            ->get()
-            ->first()
-            ?->count ?? 0;
-
-        return ['emojiCount' => $emojiCount];
+        return ['emojiCount' => $this->emojiService->getProductEmojisCount($item->getId())];
     }
 
 

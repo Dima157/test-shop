@@ -13,6 +13,8 @@ namespace Aimeos\Client\JsonApi\Emoji;
 use App\Models\Emojis;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Laminas\Diactoros\StreamFactory;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -150,13 +152,19 @@ class Standard
 	 */
 	public function get( ServerRequestInterface $request, ResponseInterface $response ) : \Psr\Http\Message\ResponseInterface
 	{
-        $this->assertLogIn();
-        $emojis = (new \App\Services\Emojis())->getEmojis($request);
+        $data = Validator::make(['productId' => $request->getQueryParams()['productId']],[
+            'productId' => 'required|int'
+        ]);
+        if ($data->fails()) {
+            $emojis = (new \App\Services\Emojis())->emojiList();
+        } else {
+            $emojis = (new \App\Services\Emojis())->productEmojis($request->getQueryParams()['productId']);
+        }
 
 		return $response->withHeader( 'Allow', 'GET,OPTIONS' )
 			->withHeader( 'Cache-Control', 'max-age=300' )
 			->withHeader( 'Content-Type', 'application/vnd.api+json' )
-			->withBody( (new StreamFactory())->createStream(json_encode($emojis->toArray())))
+			->withBody( (new StreamFactory())->createStream(json_encode($emojis)))
 			->withStatus( 200 );
 	}
 
