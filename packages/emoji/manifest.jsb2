@@ -1,0 +1,22 @@
+{
+	"projectName": "emoji",
+	"licenseText": "proprietary",
+	"pkgs": [{
+		"name": "emoji CSS",
+		"file": "emoji.css",
+		"isDebug": true,
+		"fileIncludes": [{
+			"text": "custom.css",
+			"path": "themes/admin/jqadm/"
+		}]
+	}, {
+		"name": "emoji JS",
+		"file": "emoji.js",
+		"isDebug": true,
+		"fileIncludes": [{
+			"text": "custom.js",
+			"path": "themes/admin/jqadm/"
+		}]
+	}],
+	"resources" : []
+}
