@@ -36,6 +36,7 @@ $list = $this->config( 'client/html/catalog/actions/list', ['pin', 'watch', 'fav
     .reaction {
         display: inline-block;
         position: relative;
+        top: -5px
     }
 
     #emoji-list {
@@ -55,7 +56,7 @@ $list = $this->config( 'client/html/catalog/actions/list', ['pin', 'watch', 'fav
         font-size: 25px;
     }
 
-    .reaction-icon:hover, #emoji-list:hover {
+    #emoji-list:hover {
         cursor: pointer;
     }
 </style>
@@ -92,7 +93,7 @@ $list = $this->config( 'client/html/catalog/actions/list', ['pin', 'watch', 'fav
 			<button class="actions-button actions-button-favorite" title="<?= $enc->attr( $this->translate( 'client/code', 'favorite' ) ) ?>"></button>
 		</form>
 	<?php endif ?>
-    <div style="display: none" id="proid"><?= $enc->attr( $this->productItem->getId() ) ?></div>
+    <div style="display: none" data-guest="<?= Auth::guest() ?>" data-prodid="<?= $enc->attr( $this->productItem->getId()) ?>" id="info"></div>
     <?php if(!Auth::guest()): ?>
         <div class="reaction">
             <div class="reaction-icon">
@@ -103,78 +104,81 @@ $list = $this->config( 'client/html/catalog/actions/list', ['pin', 'watch', 'fav
         </div>
     <?php endif; ?>
     <script>
-        const reaction = document.querySelector('.reaction');
-        const emojiList = document.getElementById('emoji-list');
-
-        reaction.addEventListener('mouseover', function() {
-            emojiList.style.display = 'block';
-        });
-
-        reaction.addEventListener('mouseout', function() {
-            emojiList.style.display = 'none';
-        });
-
-        (() => {
-            fetch('/jsonapi/emoji?'+ new URLSearchParams({productId: document.getElementById('proid').innerHTML}), {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-                .then(res => res.json())
-                .then(data => {
-                    let mainEmoji = data.find(emoji => emoji?.isSelected);
-                    if (!mainEmoji) {
-                        mainEmoji = data[0];
-                        data = data.slice(1)
-                        const divElement = document.getElementById('emoji-list');
-                        addEmojiToList(divElement, data)
+        const info = document.getElementById('info');
+        if (!info.dataset.guest) {
+            (() => {
+                fetch('/jsonapi/emoji?' + new URLSearchParams({productId: info.dataset.prodid}), {
+                    cache  : "no-store",
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                    document.querySelector('.main-emoji').innerHTML = unicodeToEmoji(mainEmoji.unicode)
-
                 })
-        })()
+                    .then(res => res.json())
+                    .then(data => {
+                        let mainEmoji = data.find(emoji => emoji?.isSelected);
+                        if (!mainEmoji) {
+                            mainEmoji = data[0];
+                            data = data.slice(1)
+                            const divElement = document.getElementById('emoji-list');
+                            addEmojiToList(divElement, data)
+                        }
+                        document.querySelector('.main-emoji').innerHTML = unicodeToEmoji(mainEmoji.unicode)
+                    })
+            })()
+            const reaction = document.querySelector('.reaction');
+            const emojiList = document.getElementById('emoji-list');
 
-        function addEmojiToList(targetTag, emojiItems) {
-            for (const emoji of emojiItems) {
-                const newSpan = document.createElement('span');
-                newSpan.className='emoji-item';
-                emoji.unicode.replace('U+', '&#x');
-                newSpan.innerHTML  = unicodeToEmoji(emoji.unicode);
-                newSpan.addEventListener("click", function() {
-                    selectEmoji(emoji.id, emoji.unicode, document.getElementById('proid').innerHTML)
-                }, false)
-                targetTag.appendChild(newSpan);
-            }
-        }
-        function selectEmoji(emojiId, emojiUnicode, productId) {
-            fetch('/jsonapi/emoji?' + new URLSearchParams({
-                _token: getMeta('csrf-token')
-            }), {
-                method: 'POST',
-                body: JSON.stringify({emojiId, productId}),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }).then(res => {
-                document.querySelector('.main-emoji').innerHTML = unicodeToEmoji(emojiUnicode);
-                document.getElementById('emoji-list').remove()
-            })
-        }
+            reaction.addEventListener('mouseover', function () {
+                emojiList.style.display = 'block';
+            });
 
-        function getMeta(metaName) {
-            const metas = document.getElementsByTagName('meta');
+            reaction.addEventListener('mouseout', function () {
+                emojiList.style.display = 'none';
+            });
 
-            for (let i = 0; i < metas.length; i++) {
-                if (metas[i].getAttribute('name') === metaName) {
-                    return metas[i].getAttribute('content');
+            function addEmojiToList(targetTag, emojiItems) {
+                for (const emoji of emojiItems) {
+                    const newSpan = document.createElement('span');
+                    newSpan.className = 'emoji-item';
+                    emoji.unicode.replace('U+', '&#x');
+                    newSpan.innerHTML = unicodeToEmoji(emoji.unicode);
+                    newSpan.addEventListener("click", function () {
+                        selectEmoji(emoji.id, emoji.unicode, info.dataset.proid)
+                    }, false)
+                    targetTag.appendChild(newSpan);
                 }
             }
 
-            return '';
-        }
+            function selectEmoji(emojiId, emojiUnicode, productId) {
+                fetch('/jsonapi/emoji?' + new URLSearchParams({
+                    _token: getMeta('csrf-token')
+                }), {
+                    method : 'POST',
+                    body   : JSON.stringify({emojiId, productId: document.getElementById('info').dataset.prodid}),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).then(res => {
+                    document.querySelector('.main-emoji').innerHTML = unicodeToEmoji(emojiUnicode);
+                    document.getElementById('emoji-list').remove()
+                })
+            }
 
-        function unicodeToEmoji(unicode) {
-            return unicode.replace('U+', '&#x');
+            function getMeta(metaName) {
+                const metas = document.getElementsByTagName('meta');
+
+                for (let i = 0; i < metas.length; i++) {
+                    if (metas[i].getAttribute('name') === metaName) {
+                        return metas[i].getAttribute('content');
+                    }
+                }
+
+                return '';
+            }
+
+            function unicodeToEmoji(unicode) {
+                return unicode.replace('U+', '&#x');
+            }
         }
     </script>
 </div>

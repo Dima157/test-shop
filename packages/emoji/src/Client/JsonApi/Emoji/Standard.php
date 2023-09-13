@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Laminas\Diactoros\StreamFactory;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
 
 /**
@@ -141,9 +142,14 @@ class Standard
 	 * @see client/jsonapi/attribute/decorators/excludes
 	 * @see client/jsonapi/attribute/decorators/global
 	 */
+    private \App\Services\Emojis $emojiService;
+    public function __construct(\Aimeos\MShop\ContextIface $context)
+    {
+        parent::__construct($context);
+        $this->emojiService = new \App\Services\Emojis();
+    }
 
-
-	/**
+    /**
 	 * Returns the resource or the resource list
 	 *
 	 * @param \Psr\Http\Message\ServerRequestInterface $request Request object
@@ -155,10 +161,10 @@ class Standard
         $data = Validator::make(['productId' => $request->getQueryParams()['productId']],[
             'productId' => 'required|int'
         ]);
-        if ($data->fails()) {
-            $emojis = (new \App\Services\Emojis())->emojiList();
+        if ($data->fails() || Auth::guest()) {
+            $emojis = $this->emojiService->emojiList();
         } else {
-            $emojis = (new \App\Services\Emojis())->productEmojis($request->getQueryParams()['productId']);
+            $emojis = $this->emojiService->productEmojis($request->getQueryParams()['productId']);
         }
 
 		return $response->withHeader( 'Allow', 'GET,OPTIONS' )
@@ -179,11 +185,18 @@ class Standard
     public function post( ServerRequestInterface $request, ResponseInterface $response ) : \Psr\Http\Message\ResponseInterface
     {
         $this->assertLogIn();
-        DB::table('emojis_to_product')->insert([
-            'userId' => Auth::id(),
+        $data = Validator::make([
             'productId' => $request->getParsedBody()['productId'],
             'emojiId' => $request->getParsedBody()['emojiId']
+        ],[
+            'productId' => 'required|int',
+            'emojiId' => 'required|int'
         ]);
+        if ($data->fails()) {
+            throw new BadRequestException($data->errors()->toArray());
+        }
+
+        $this->emojiService->addEmojiToProduct($request->getParsedBody()['productId'], $request->getParsedBody()['emojiId']);
 
         return $response->withHeader( 'Allow', 'GET,OPTIONS' )
             ->withHeader( 'Cache-Control', 'max-age=300' )

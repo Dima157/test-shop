@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Repositories\EmojiRepository;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class Emojis
@@ -30,19 +32,6 @@ class Emojis
         return $this->emojiRepository->emojiList();
     }
 
-    private function sortedListByPopular(): Collection
-    {
-        //TODO Could be use cache with TTL
-//        $emojis = Cache::get('emojis');
-//        if ($emojis) {
-//            return $emojis;
-//        }
-        $emojis = $this->emojiRepository->sortedListByPopular();
-//        Cache::set('emojis', $emojis);
-
-        return $emojis;
-    }
-
     public function removeEmojisToProduct(int $productId): void
     {
         $this->emojiRepository->removeEmojisToProduct($productId);
@@ -50,6 +39,14 @@ class Emojis
 
     public function getProductEmojisCount(int $productId): int {
         return $this->emojiRepository->getProductEmojisCount($productId)?->count ?? 0;
+    }
+
+    public function addEmojiToProduct(int $productId, $emojiId) {
+        $selectedEmoji = $this->emojiRepository->userEmojiToProduct($productId);
+        if($selectedEmoji) {
+            throw new \LogicException('User already selected emoji');
+        }
+        $this->emojiRepository->addEmojiToProduct(Auth::id(), $productId, $emojiId);
     }
 
     private function handleSelectedEmoji(Collection $emojis, int $productId): Collection
@@ -62,6 +59,19 @@ class Emojis
                 return $emoji;
             });
         }
+
+        return $emojis;
+    }
+
+    private function sortedListByPopular(): Collection
+    {
+        //TODO Could be use cache with TTL
+//        $emojis = Cache::get('emojis');
+//        if ($emojis) {
+//            return $emojis;
+//        }
+        $emojis = $this->emojiRepository->sortedListByPopular();
+//        Cache::set('emojis', $emojis);
 
         return $emojis;
     }

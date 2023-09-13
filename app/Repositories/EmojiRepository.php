@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class EmojiRepository
 {
-    public function userEmojiToProduct(int $productId): Emojis {
+    public function userEmojiToProduct(int $productId): Emojis|null {
         return Auth::user()->emojis()
             ->where('productId', $productId)
             ->first();
@@ -41,5 +41,13 @@ class EmojiRepository
             ->groupBy('productId')
             ->get()
             ->first();
+    }
+
+    public function addEmojiToProduct(int $userId, int $productId, int $emojiId) {
+        DB::table('emojis_to_product')->insert([
+            'userId' => $userId,
+            'productId' => $productId,
+            'emojiId' => $emojiId
+        ]);
     }
 }
