@@ -11,7 +11,7 @@ $(function() {
 
 Aimeos.Emoji = {
     init() {
-        Aimeos.components['text'] = new Vue({
+        Aimeos.components['emoji'] = new Vue({
             el: document.querySelector('#emoji'),
             data: {
                 emojiCount: $(".emojiCountData").data("emoji")?.emojiCount || 0,
