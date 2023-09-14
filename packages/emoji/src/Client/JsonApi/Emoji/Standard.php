@@ -206,7 +206,7 @@ class Standard
 
     private function assertLogIn() {
         if (Auth::guest()) {
-            throw new \Aimeos\Client\JsonApi\Exception( 'Unauthorized', 4001 );
+            throw new \Aimeos\Client\JsonApi\Exception( 'Unauthorized', 401 );
         }
     }
 }
